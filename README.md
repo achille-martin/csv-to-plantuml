@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Convert `csv` format to specific `PlantUML` format.
+Convert pre-defined `csv` format to specific `PlantUML` format.
 
 Current `PlantUML` formats available:
 * [Mind Map](https://plantuml.com/mindmap-diagram)
