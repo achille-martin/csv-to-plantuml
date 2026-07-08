@@ -264,7 +264,7 @@ class Writer():
             raise Exception(f"Unable to identify mode value via `{mode}`")
         with open(self.file_output.path, file_write_mode) as f:
             f.write(line_input.value)
-        success = True
+        	success = True
         if success == False:
             raise WriteError(f"Unable to write {line_input} to {self.file_output} with mode {mode}")
         logger.debug(f"[Writer::write_line] - Wrote line data `{line_input.value}` to file `{self.file_output}`")
