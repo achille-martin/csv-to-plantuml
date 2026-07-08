@@ -50,8 +50,6 @@
 
 # TODO =
 # * (Optional) Save `os.path.realpath()` when receiving the input from CLI
-# * (Optional) Add basic logging
-# * (Optional) Add `"overwrite"` for `WriteMode` allowed mode values
 
 # 3) Libraries (imports)
 
