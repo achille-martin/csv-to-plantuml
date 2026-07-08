@@ -1,0 +1,55 @@
+@startmindmap
+
+skinparam wrapWidth 200
+skinparam maxMessageSize 150
+
+title test_input_basic
+
+* ROOT
+right side
+
+**:
+Title 1
+;
+
+***:
+Title 1.1
+;
+
+****:
+Title 1.1.1
+;
+
+*****:
+Title 1.1.1.1
+;
+
+*****:
+Title 1.1.1.2
+;
+
+****:
+Title 1.1.2
+;
+
+***:
+Title 1.2
+;
+
+**:
+Title 2
+;
+
+***:
+Title 2.1
+;
+
+****:
+Title 2.1.1
+;
+
+***:
+Title 2.2
+;
+
+@endmindmap
