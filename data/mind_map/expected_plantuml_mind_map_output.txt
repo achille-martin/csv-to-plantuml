@@ -3,7 +3,7 @@
 skinparam wrapWidth 200
 skinparam maxMessageSize 150
 
-title test_input_basic
+title output
 
 * ROOT
 right side
