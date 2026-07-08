@@ -62,6 +62,9 @@ import os
 import sys
 import logging as log_tool
 import csv
+import unittest
+from unittest.mock import patch
+import shlex
 
 # 4) Global variables
 
@@ -75,6 +78,13 @@ global_plantuml_wrap_width = 200
 global_plantuml_max_message_size = 150
 global_plantuml_root_node_name = "ROOT"
 
+global_importer_folder = os.path.dirname(
+	os.path.realpath(__file__)
+)
+global_parent_of_importer_folder = os.path.join(
+	global_importer_folder,
+	os.path.pardir,
+)
 global_current_file_name = os.path.splitext(os.path.basename(__file__))[0]
 
 global_log_format = "[%(levelname)s] [%(asctime)s] - %(message)s"
@@ -321,6 +331,87 @@ class WriteError(Exception):
         super().__init__(self.message)
 
 # 9) Tests
+
+class TestClassCliParsing(unittest.TestCase):
+    """
+    Test class to confirm the parsing of inputs
+    via the CLI `csv_to_plantuml_mind_map`
+    and based on the defined requirements
+
+    """
+
+    test_file_input = os.path.join(
+        global_parent_of_importer_folder,
+        "data",
+        "mind_map",
+        "test_input_basic.csv",
+    )
+
+    def test_parse_cli_file_input_valid(self):
+        """
+        Test case for the required `file_input` argument of the CLI
+        with a valid path and extension
+        """
+        argv = shlex.split(
+            f'script_name "{self.test_file_input}"'
+        )
+        with patch("sys.argv", argv):
+            parsed_cli_args = parse_cli_args()
+        parsed_file_input = parsed_cli_args.file_input
+        self.assertEqual(
+            parsed_file_input,
+            CsvFile(path=self.test_file_input, role="input"),
+        )
+
+    def test_parse_cli_file_input_invalid_path(self):
+        """
+        Test case for the optional `file_input` argument of the CLI
+        with an invalid path
+        """
+        argv = shlex.split(
+            f'script_name "non_existent.csv"'
+        )
+        with patch("sys.argv", argv):
+            self.assertRaises(FileNotFoundError, parse_cli_args)
+
+    def test_parse_cli_file_input_invalid_extension(self):
+        """
+        Test case for the optional `file_input` argument of the CLI
+        with an invalid extension
+        """
+        argv = shlex.split(
+            f'script_name "{self.test_file_input}" -o "non_existent.test"'
+        )
+        with patch("sys.argv", argv):
+            self.assertRaises(ValueError, parse_cli_args)
+
+    def test_parse_cli_file_output_valid(self):
+        """
+        Test case for the required `file_output` argument of the CLI
+        with a valid extension (and non existent path)
+        """
+        test_file_output = "non_existent.txt"
+        argv = shlex.split(
+            f'script_name "{self.test_file_input}" -o "{test_file_output}"'
+        )
+        with patch("sys.argv", argv):
+            parsed_cli_args = parse_cli_args()
+        parsed_file_output = parsed_cli_args.file_output
+        self.assertEqual(
+            parsed_file_output,
+            PlantUmlFile(path=test_file_output, role="output"),
+        )
+
+    def test_parse_cli_file_output_invalid_extension(self):
+        """
+        Test case for the optional `file_output` argument of the CLI
+        with an invalid extension
+        """
+        argv = shlex.split(
+            f'script_name "non_existent.test"'
+        )
+        with patch("sys.argv", argv):
+            self.assertRaises(ValueError, parse_cli_args)
 
 # 10) Main
 
