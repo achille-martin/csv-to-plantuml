@@ -31,14 +31,18 @@
 # * Advanced: extra notes, alongside the mind map entities
 
 # USAGE = execute the program via the command-line interface (CLI)
+# * Basic example (from current folder location):
+#   `python3 csv_to_plantuml_mind_map.py ../data/mind_map/test_input_basic.csv`
+#   Outputs file `output.txt` at current folder location
 
 # ASSUMPTIONS =
 # * Code running with python3
 # * Code running on UNIX machines
 # * Csv file format ends with `.csv`
-# * Csv first row is the header
-# * Csv first column is the first level, then second column is second level, etc.
-# * Csv only contains one level entity per row
+# * Csv first row/line (id = 0) is the header
+# * Csv first column (id = 0) is the first level,
+#   then second column (id = 1) is second level, etc.
+# * Csv only contains one level entity per row/line
 # * Csv only contains sequential level increases
 # * Plantuml mind map file format ends with `.txt`
 # * Plantuml mind map uses OrgMode syntax
@@ -59,14 +63,19 @@ import re
 import os
 import sys
 import logging as log_tool
+import csv
 
 # 4) Global variables
 
 global_allowed_role_values = ["input", "output"]
-global_allowed_mode_values = ["append"]
+global_allowed_mode_values = ["append", "overwrite"]
 global_output_file_name = "output.txt"
 global_csv_file_extension = "csv"
-gloabl_plantuml_file_extension = "txt"
+global_csv_header_line_id = 0
+global_plantuml_file_extension = "txt"
+global_plantuml_wrap_width = 200
+global_plantuml_max_message_size = 150
+global_plantuml_root_node_name = "ROOT"
 
 global_current_file_name = os.path.splitext(os.path.basename(__file__))[0]
 
@@ -102,6 +111,10 @@ class CsvFile:
     path: str
     role: str = allowed_role_values[0]
 
+    def get_file_name(self):
+        filename, _ = os.path.splitext(self.path)
+        return filename
+
     def __post_init__(self):
         # Ensure non-emptiness
         if not self.path:
@@ -127,16 +140,20 @@ class CsvFile:
 
 @dataclass(frozen=True)
 class CsvLine:
-    value: str
+    value: list[str]
 
 @dataclass(frozen=True)
 class PlantUmlFile:
-    required_extension = gloabl_plantuml_file_extension
+    required_extension = global_plantuml_file_extension
     allowed_role_values = global_allowed_role_values
 
     path: str
     role: str = allowed_role_values[1]
 
+
+    def get_file_name(self):
+        filename, _ = os.path.splitext(self.path)
+        return filename
 
     def __post_init__(self):
         # Ensure non-emptiness
@@ -178,9 +195,26 @@ class Reader():
 
     def read_line(self, line_index: int) -> CsvLine:
         output = None
+        with open(self.file_input.path, "r") as f:
+            csv_reader = csv.reader(f)
+            for row_id, row_data in enumerate(csv_reader):
+                if row_id == line_index:
+                    output = CsvLine(value=row_data)
+                    break
         if output is None:
             raise ReadError(f"Unable to read {self.file_input}, at line index {line_index}")
+        logger.debug(f"[Reader::read_line] - Read line data `{output}` at line index `{line_index}` from file `{self.file_input}`")
         return output
+
+    def get_total_lines(self) -> int:
+        line_count = None
+        with open(self.file_input.path, "r") as f:
+            csv_reader = csv.reader(f)
+            line_count = sum(1 for row in csv_reader)
+        if line_count is None:
+            raise ReadError(f"Unable to count lines in {self.file_input}")
+        logger.debug(f"[Reader::get_total_lines] - Calculated a total of `{line_count}` lines from file `{self.file_input}`")
+        return line_count
 
 class Converter():
     def __init__(self):
@@ -188,7 +222,21 @@ class Converter():
 
     def convert_line(self, line_input: CsvLine) -> PlantUmlLine:
         output = None
-        # NOTE: figure out node level depending on column
+        for column_id, column_data in enumerate(line_input.value):
+            if column_data:
+                # Figure out node level from column id
+                # and include root level in the calculation
+                node_level_indicator = "*" * (column_id + 1 + 1)
+                output = PlantUmlLine(
+                    value=cl(
+                        f"""
+                        {node_level_indicator}:
+                        {column_data}
+                        ;
+                        """
+                    )
+                )
+                break
         if output is None:
             raise ConversionError(f"Unable to convert {line_input}")
         return output
@@ -197,10 +245,21 @@ class Writer():
     def __init__(self, file_output: PlantUmlFile):
         self.file_output = file_output
 
-    def write_line(self, line_input: PlantUmlLine, mode: WriteMode):
+    def write_line(self, line_input: PlantUmlLine, mode: WriteMode = WriteMode()):
         success = False
+        file_write_mode = None
+        if mode.value == global_allowed_mode_values[0]:
+            file_write_mode = "a"
+        elif mode.value == global_allowed_mode_values[1]:
+            file_write_mode = "w"
+        else:
+            raise Exception(f"Unable to identify mode value via `{mode}`")
+        with open(self.file_output.path, file_write_mode) as f:
+            f.write(line_input.value)
+        success = True
         if success == False:
             raise WriteError(f"Unable to write {line_input} to {self.file_output} with mode {mode}")
+        logger.debug(f"[Writer::write_line] - Wrote line data `{line_input.value}` to file `{self.file_output}`")
 
 class ParseFileInputAction(argparse.Action):
     def __call__(self, parser, namespace, value, option_string=None):
@@ -283,6 +342,51 @@ def main():
             """
         )
     )
+
+    logger.info("[main] - Initialise output file...")
+    file_writer = Writer(cli_inputs.file_output)
+    output_file_header = cl(
+        f"""
+        @startmindmap
+
+        skinparam wrapWidth {global_plantuml_wrap_width}
+        skinparam maxMessageSize {global_plantuml_max_message_size}
+
+        title {cli_inputs.file_output.get_file_name()}
+
+        * {global_plantuml_root_node_name}
+        right side
+        """
+    )
+    file_writer.write_line(line_input=PlantUmlLine(output_file_header), mode=WriteMode("overwrite"))
+    logger.info("[main] - ...DONE")
+
+    logger.info("[main] - Converting file input to file output line by line...")
+    file_reader = Reader(cli_inputs.file_input)
+    converter = Converter()
+    total_lines = file_reader.get_total_lines()
+    for line_id in range(total_lines):
+        # Skip header line
+        if line_id == global_csv_header_line_id:
+            continue
+        output_file_line_return = "\n\n"
+        file_writer.write_line(line_input=PlantUmlLine(output_file_line_return), mode=WriteMode("append"))
+        extracted_line_data = file_reader.read_line(line_id)
+        converted_line_data = converter.convert_line(extracted_line_data)
+        file_writer.write_line(line_input=converted_line_data, mode=WriteMode("append"))
+    logger.info("[main] - ...DONE")
+
+    logger.info("[main] - Finalise output file...")
+    file_writer = Writer(cli_inputs.file_output)
+    output_file_line_return = "\n\n"
+    file_writer.write_line(line_input=PlantUmlLine(output_file_line_return), mode=WriteMode("append"))
+    output_file_end = cl(
+        f"""
+        @endmindmap
+        """
+    )
+    file_writer.write_line(line_input=PlantUmlLine(output_file_end), mode=WriteMode("append"))
+    logger.info("[main] - ...DONE")
 
 
 if __name__ == "__main__":
