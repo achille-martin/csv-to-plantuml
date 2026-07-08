@@ -15,7 +15,7 @@ Current `PlantUML` formats available:
 
 * Run the example from current repo:
 
-```python
+```bash
 cd src &&
 python3 csv_to_plantuml_mind_map.py "../data/mind_map/test_input_basic.csv"
 ```
@@ -25,7 +25,7 @@ You can view the file with the [PlantUML executable](https://plantuml.com/downlo
 
 * (Optional) Run the unit tests from current repo:
 
-```python
+```bash
 cd src &&
 python3 -m unittest csv_to_plantuml_mind_map.py -v
 ```
